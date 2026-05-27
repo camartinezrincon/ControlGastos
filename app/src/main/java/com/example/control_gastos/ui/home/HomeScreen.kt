@@ -12,7 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Card
@@ -65,7 +65,7 @@ fun HomeScreen(
                         Icon(Icons.Filled.List, "Gastos Recurrentes")
                     }
                     IconButton(onClick = onViewHistoryClick) {
-                        Icon(Icons.Filled.History, "Historial")
+                        Icon(Icons.Filled.DateRange, "Historial")
                     }
                 }
             }
@@ -130,7 +130,6 @@ fun HomeScreen(
                     }
                 } ?: run {
                     Text("No hay período financiero configurado. Por favor, inicia uno.")
-                    // Aquí se podría añadir un botón para configurar el primer período
                 }
             }
         }
@@ -138,7 +137,7 @@ fun HomeScreen(
 }
 
 fun formatCurrency(amount: Double): String {
-    val format = NumberFormat.getCurrencyInstance(Locale("es", "CO")) // Ejemplo para Colombia
+    val format = NumberFormat.getCurrencyInstance(Locale("es", "CO"))
     return format.format(amount)
 }
 

@@ -3,19 +3,18 @@ package com.example.control_gastos.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.control_gastos.data.local.dao.FinancialPeriodDao
+import com.example.control_gastos.data.local.entities.Expense
 import com.example.control_gastos.data.local.entities.FinancialPeriod
 import com.example.control_gastos.domain.repository.ExpenseRepository
 import com.example.control_gastos.domain.usecase.CheckAndCreatePeriodUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class HomeUiState(
     val currentPeriod: FinancialPeriod? = null,
+    val expenses: List<Expense> = emptyList(),
     val totalSpent: Double = 0.0,
     val expenseCount: Int = 0,
     val topCategories: List<com.example.control_gastos.data.local.dao.ExpenseDao.CategorySpending> = emptyList(),
@@ -38,31 +37,29 @@ class HomeViewModel @Inject constructor(
         loadCurrentPeriodData()
     }
 
-    fun loadCurrentPeriodData(type: String = "Mensual", balance: Double = 0.0) {
+    fun loadCurrentPeriodData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
-                val currentPeriod = checkAndCreatePeriodUseCase(type, balance)
+                val currentPeriod = checkAndCreatePeriodUseCase("Mensual", 0.0)
                 _uiState.value = _uiState.value.copy(currentPeriod = currentPeriod)
 
-                currentPeriod.let {
-                    combine(
-                        expenseRepository.getTotalSpentForPeriod(it.id),
-                        expenseRepository.getExpenseCountForPeriod(it.id),
-                        expenseRepository.getTopCategoriesForPeriod(it.id)
-                    ) { totalSpent, expenseCount, topCategories ->
-                        val calculatedTotalSpent = totalSpent ?: 0.0
-                        val calculatedBalance = it.initialBalance - calculatedTotalSpent
-                        _uiState.value.copy(
-                            totalSpent = calculatedTotalSpent,
-                            expenseCount = expenseCount ?: 0,
-                            topCategories = topCategories,
-                            balanceRemaining = calculatedBalance,
-                            isLoading = false
-                        )
-                    }.collect { updatedState ->
-                        _uiState.value = updatedState
-                    }
+                combine(
+                    expenseRepository.getExpensesForPeriod(currentPeriod.id),
+                    expenseRepository.getTotalSpentForPeriod(currentPeriod.id),
+                    expenseRepository.getTopCategoriesForPeriod(currentPeriod.id)
+                ) { expenses, totalSpent, topCategories ->
+                    val calculatedTotalSpent = totalSpent ?: 0.0
+                    _uiState.value.copy(
+                        expenses = expenses,
+                        totalSpent = calculatedTotalSpent,
+                        expenseCount = expenses.size,
+                        topCategories = topCategories,
+                        balanceRemaining = currentPeriod.initialBalance - calculatedTotalSpent,
+                        isLoading = false
+                    )
+                }.collect { updatedState ->
+                    _uiState.value = updatedState
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isLoading = false, error = e.localizedMessage)
@@ -73,10 +70,21 @@ class HomeViewModel @Inject constructor(
     fun updateInitialBalance(newBalance: Double) {
         viewModelScope.launch {
             _uiState.value.currentPeriod?.let {
-                val updatedPeriod = it.copy(initialBalance = newBalance)
-                financialPeriodDao.updateFinancialPeriod(updatedPeriod)
-                // El flujo de Room actualizará la UI automáticamente
+                financialPeriodDao.updateFinancialPeriod(it.copy(initialBalance = newBalance))
+                loadCurrentPeriodData() // Recargar para actualizar el balance calculado
             }
+        }
+    }
+
+    fun deleteExpense(expense: Expense) {
+        viewModelScope.launch {
+            expenseRepository.deleteExpense(expense.id)
+        }
+    }
+
+    fun updateExpense(expense: Expense) {
+        viewModelScope.launch {
+            expenseRepository.updateExpense(expense)
         }
     }
 }

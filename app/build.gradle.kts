@@ -1,8 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    id("com.google.devtools.ksp") // Para Room y Hilt
-    id("com.google.dagger.hilt.android") // Para Hilt
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
 }
 
 android {
